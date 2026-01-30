@@ -1,0 +1,11 @@
+Model Information:
+* title:	Star-Cruiser-{X}-[EnigmA]
+* source:	https://sketchfab.com/3d-models/star-cruiser-x-enigma-07ab34d91a58457aaa170506ca33b98d
+* author:	-X-ScornGames (https://sketchfab.com/XX-XX)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Star-Cruiser-{X}-[EnigmA]" (https://sketchfab.com/3d-models/star-cruiser-x-enigma-07ab34d91a58457aaa170506ca33b98d) by -X-ScornGames (https://sketchfab.com/XX-XX) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
