@@ -152,7 +152,9 @@ public:
         string nodeName(node->mName.data);
         glm::mat4 nodeTransform = AssimpGLMHelpers::ConvertMatrixToGLMFormat(node->mTransformation);
 
-        const aiNodeAnim* nodeAnim = FindNodeAnim(animation, nodeName);
+        const aiNodeAnim* nodeAnim = nullptr;
+        if (animation)
+            nodeAnim = FindNodeAnim(animation, nodeName);
 
         if (nodeAnim)
         {
@@ -409,7 +411,7 @@ private:
             mat->GetTexture(type, i, &str);
             string texPath = string(str.C_Str());
             
-            // Handle Windows/Linux path separators
+
             size_t lastBackslash = texPath.find_last_of('\\');
             size_t lastSlash = texPath.find_last_of('/');
             size_t lastSpec = (lastBackslash == string::npos) ? lastSlash : (lastSlash == string::npos ? lastBackslash : max(lastSlash, lastBackslash));
