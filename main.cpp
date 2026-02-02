@@ -18,6 +18,12 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
+// Trooper State
+glm::vec3 trooperPosition(2.0f, 0.0f, 2.0f);
+float trooperRotation = 180.0f; // Initial rotation (facing camera/default)
+bool isTrooperMoving = false;
+// float trooperRotation_yaw = 0.0f; // Deprecated
+// float trooperRotation_pitch = 0.0f; // Deprecated
 unsigned int SCR_WIDTH = 800;
 unsigned int SCR_HEIGHT = 600;
 
@@ -46,6 +52,9 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 
     lastX = xpos;
     lastY = ypos;
+    
+    // trooperRotation_yaw += xoffset;
+    // trooperRotation_pitch += yoffset;
 
     camera.ProcessMouseMovement(xoffset, yoffset);
 }
@@ -60,15 +69,22 @@ void processInput(GLFWwindow* window)
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
     
-    float speedMult = 10.0f; 
+    // TPS Movement Control
+    isTrooperMoving = false;
+    float moveSpeed = 5.0f * deltaTime; // Adjust speed as needed
+
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        camera.ProcessKeyboard(FORWARD, deltaTime * speedMult);
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        camera.ProcessKeyboard(BACKWARD, deltaTime * speedMult);
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        camera.ProcessKeyboard(LEFT, deltaTime * speedMult);
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        camera.ProcessKeyboard(RIGHT, deltaTime * speedMult);
+    {
+        glm::vec3 forward = camera.front;
+        forward.y = 0.0f;
+        forward = glm::normalize(forward);
+
+        trooperPosition += forward * moveSpeed;
+        trooperRotation = glm::degrees(atan2(forward.x, forward.z)); 
+        isTrooperMoving = true;
+    }
+
+
 }
 
 int main()
@@ -137,7 +153,7 @@ int main()
     
     if (ma_engine_init(NULL, &engine) == MA_SUCCESS) {
         // You can change this path to your audio file
-        std::string audioPath = "/home/chiranjeet/Graphics/model_files/march-of-the-troopers-star-wars-style-cinematic-music-207056.mp3";
+        std::string audioPath = "/home/chiranjeet/cd_game_engine/model_files/march-of-the-troopers-star-wars-style-cinematic-music-207056.mp3";
         if (ma_sound_init_from_file(&engine, audioPath.c_str(), 0, NULL, NULL, &bgMusic) == MA_SUCCESS) {
             ma_sound_set_looping(&bgMusic, MA_TRUE);
             ma_sound_start(&bgMusic);
@@ -146,13 +162,15 @@ int main()
     }
 
     // Load models
-    Model ourModel("/home/chiranjeet/Graphics/model_files/ue4-storm-trooper-rigged-game-ready/source/Walking.fbx");
-    Model planetModel("/home/chiranjeet/Graphics/model_files/wskrs-the-eyes-and-ears-of-seaquest/source/WSKRS.fbx");
-    Model enigmaModel("/home/chiranjeet/Graphics/model_files/star-cruiser-x-enigma/scene.gltf");
+    Model ourModel("/home/chiranjeet/cd_game_engine/model_files/ue4-storm-trooper-rigged-game-ready/source/Walking.fbx");
+    Model planetModel("/home/chiranjeet/cd_game_engine/model_files/wskrs-the-eyes-and-ears-of-seaquest/source/WSKRS.fbx");
+    Model enigmaModel("/home/chiranjeet/cd_game_engine/model_files/star-cruiser-x-enigma/scene.gltf");
 
     // Animation variables
     Assimp::Importer animationImporter;
-    const aiScene* animationScene = animationImporter.ReadFile("/home/chiranjeet/Graphics/model_files/ue4-storm-trooper-rigged-game-ready/source/Walking.fbx", aiProcess_Triangulate);
+    Assimp::Importer idleImporter;
+    const aiScene* animationScene = animationImporter.ReadFile("/home/chiranjeet/cd_game_engine/model_files/ue4-storm-trooper-rigged-game-ready/source/Walking.fbx", aiProcess_Triangulate);
+    const aiScene* idleScene = idleImporter.ReadFile("/home/chiranjeet/cd_game_engine/model_files/ue4-storm-trooper-rigged-game-ready/source/Standing W_Briefcase Idle.fbx", aiProcess_Triangulate);
 
     // Unified Uniform Grid (Vast and consistent)
     vector<float> gridVertices;
@@ -217,9 +235,11 @@ int main()
             lastTime = currentFrame;
         }
 
-        // Auto-move camera with the army
-        float moveForward = 2.0f * deltaTime;
-        camera.position.z -= moveForward; // Assumes -Z is forward
+        // Update Camera to follow Trooper (TPS Chase Cam)
+        float camDist = 5.0f;
+        float camHeight = 2.0f;
+        // Position camera behind the trooper based on where we are looking
+        camera.position = trooperPosition - (camera.front * camDist) + glm::vec3(0.0f, camHeight, 0.0f);
 
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -320,44 +340,62 @@ int main()
         glDrawArrays(GL_LINES, 0, gridVertices.size() / 3);
         glDisable(GL_BLEND);
 
-        // 4. Draw Troopers (Opaque)
+
+        // 5. Draw Trooper with new state
         ourShader.use();
         ourShader.setMat4("projection", projection);
         ourShader.setMat4("view", view);
         ourShader.setVec3("lightPos", lightPos);
         ourShader.setVec3("viewPos", camera.position);
         ourShader.setVec3("lightColor", lightColor);
+        
+        glm::mat4 trooperModel = glm::mat4(1.0f);
+        trooperModel = glm::translate(trooperModel, trooperPosition);
+        trooperModel = glm::rotate(trooperModel, glm::radians(trooperRotation), glm::vec3(0.0f, 1.0f, 0.0f)); 
+        trooperModel = glm::scale(trooperModel, glm::vec3(0.02f, 0.02f, 0.02f)); 
+        ourShader.setMat4("model", trooperModel);
 
-        if (animationScene && animationScene->mNumAnimations > 0)
+        // Animation only if moving
+        if (isTrooperMoving && animationScene && animationScene->mNumAnimations > 0)
         {
-            vector<glm::mat4> transforms(100, glm::mat4(1.0f));
-            ourModel.UpdateAnimation(currentFrame, animationScene, transforms);
-            for (int i = 0; i < transforms.size(); i++)
-                ourShader.setMat4("finalBonesMatrices[" + to_string(i) + "]", transforms[i]);
-            ourShader.setBool("hasTexture", true);
+             // Running/Walking animation
+             ourModel.Draw(ourShader); // Helper might need decoupling Update vs Draw
+             
+             vector<glm::mat4> transforms(100, glm::mat4(1.0f));
+             ourModel.UpdateAnimation(currentFrame, animationScene, transforms);
+             for (int i = 0; i < transforms.size(); i++)
+                 ourShader.setMat4("finalBonesMatrices[" + to_string(i) + "]", transforms[i]);
+             ourShader.setBool("hasTexture", true);
         }
-
-        // Render army of tiny troopers (Moving with the world)
-        float worldOffset = currentFrame * 2.0f; // Matches camera auto-speed
-        for (int x = -10; x <= 10; x++)
+        else
         {
-            for (int z = -10; z <= 10; z++)
-            {
-                glm::mat4 trooperModel = glm::mat4(1.0f);
-                // Translate relative to a moving base to keep up with camera
-                trooperModel = glm::translate(trooperModel, glm::vec3((float)x * 2.0f, 0.0f, (float)z * 2.0f - worldOffset));
-                trooperModel = glm::rotate(trooperModel, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f)); 
-                trooperModel = glm::scale(trooperModel, glm::vec3(0.02f, 0.02f, 0.02f)); 
-                ourShader.setMat4("model", trooperModel);
-                ourModel.Draw(ourShader);
-            }
+             // Idle Animation (Briefcase Stand)
+             if (idleScene && idleScene->mNumAnimations > 0)
+             {
+                 vector<glm::mat4> transforms(100, glm::mat4(1.0f));
+                 ourModel.UpdateAnimation(currentFrame, idleScene, transforms);
+                 for (int i = 0; i < transforms.size(); i++)
+                     ourShader.setMat4("finalBonesMatrices[" + to_string(i) + "]", transforms[i]);
+                 ourShader.setBool("hasTexture", true);
+             }
+             else
+             {
+                 // Fallback to Bind Pose if load failed
+                 vector<glm::mat4> transforms(100, glm::mat4(1.0f));
+                 ourModel.CalculateBoneTransform(animationScene->mRootNode, nullptr, 0.0f, glm::mat4(1.0f), transforms);
+                 for (int i = 0; i < transforms.size(); i++)
+                     ourShader.setMat4("finalBonesMatrices[" + to_string(i) + "]", transforms[i]);
+                 ourShader.setBool("hasTexture", true);
+             }
+             
+             ourModel.Draw(ourShader);
         }
 
         // 5. Draw HUD (FPS Counter)
         glEnable(GL_BLEND);
         hudShader.use();
         hudShader.setInt("fps", fps);
-        hudShader.setVec3("textColor", glm::vec3(0.0f, 1.0f, 0.0f)); // Bright green
+        hudShader.setVec3("textColor", glm::vec3(0.0f, 1.0f, 0.0f)); 
         glBindVertexArray(hudVAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glDisable(GL_BLEND);
